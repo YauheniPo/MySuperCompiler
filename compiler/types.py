@@ -5,3 +5,4 @@ class Type(Enum):
     PAREN = 'paren'
     STRING = 'string'
     NAME = 'name'
+    NUMBER = 'number'
