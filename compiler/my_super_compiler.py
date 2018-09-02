@@ -152,11 +152,29 @@ def parser(tokens):
 
 
 def traverser(ast, visitor):
-    
+    global visitor_dict
+    visitor_dict = dict((type(lit).__name__, lit) for lit in visitor)
+
+    def traverse_node(node, parent):
+        method = visitor_dict.get(type(node).__name__)
+
+        if method:
+            method.enter(node=node, parent=parent)
+
+    traverse_node(ast, None)
 
 
 # Трансформация - берёт это абстрактное представление, и делает с ним всё, что
 #       требует компилятор.
+
+
+def transformer(ast):
+
+    traverser(ast, {NumberLiteral(), StringLiteral(), CallExpression()})
+
+    return ast.get_new_body()
+
+
 
 # Кодогенерация берёт трансформированное представление кода, и на его основе
 #      генерирует новый код.
@@ -165,4 +183,5 @@ def traverser(ast, visitor):
 def compiler(input):
     tokens = tokenizer(input)
     ast = parser(tokens)
+    new_ast = transformer(ast)
     pass
