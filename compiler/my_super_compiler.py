@@ -2,6 +2,7 @@ import re
 from enum import Enum
 from io import StringIO
 
+from compiler.entity.nodes import NumberLiteral, StringLiteral, CallExpression, Program
 from compiler.types import Type
 
 
@@ -36,14 +37,14 @@ def tokenizer(input_data):
         char = input_data[current]
 
         if char is Char.OPENING_BRACKET.value:
-            tokens.append(Token(Type.PAREN, Char.OPENING_BRACKET.value))
+            tokens.append(Token(type=Type.PAREN, value=Char.OPENING_BRACKET.value))
 
             current += 1
 
             continue
 
         if char is Char.CLOSING_BRACKET.value:
-            tokens.append(Token(Type.PAREN, Char.CLOSING_BRACKET.value))
+            tokens.append(Token(type=Type.PAREN, value=Char.CLOSING_BRACKET.value))
 
             current += 1
 
@@ -53,15 +54,15 @@ def tokenizer(input_data):
             current += 1
             continue
 
-        if re.match(Char.NUMBER.value, char):
+        if re.match(pattern=Char.NUMBER.value, string=char):
             value = StringIO()
 
-            while re.match(Char.NUMBER.value, char):
+            while re.match(pattern=Char.NUMBER.value, string=char):
                 value.write(char)
                 current += 1
                 char = input_data[current]
 
-            tokens.append(Token(Type.NUMBER, value.getvalue()))
+            tokens.append(Token(type=Type.NUMBER, value=value.getvalue()))
 
             continue
 
@@ -76,23 +77,23 @@ def tokenizer(input_data):
             current += 1
             char = input_data[current]
 
-            tokens.append(Token(Type.STRING, value.getvalue()))
+            tokens.append(Token(type=Type.STRING, value=value.getvalue()))
 
             continue
 
-        if re.match(Char.LETTERS.value, char):
+        if re.match(pattern=Char.LETTERS.value, string=char):
             value = StringIO()
 
-            while re.match(Char.LETTERS.value, char):
+            while re.match(pattern=Char.LETTERS.value, string=char):
                 value.write(char)
                 current += 1
                 char = input_data[current]
 
-            tokens.append(Token(Type.NAME, value.getvalue()))
+            tokens.append(Token(type=Type.NAME, value=value.getvalue()))
 
             continue
 
-        raise TypeError('I dont know what this character is: {}'.format(char))
+        raise TypeError('I dont know what this character is: {char}'.format(char=char))
 
     return tokens
 
@@ -105,6 +106,55 @@ def tokenizer(input_data):
 #      много информации.
 
 
+def parser(tokens):
+    global current_parser
+    current_parser = 0
+
+    def walk():
+        global current_parser
+        token = tokens[current_parser]
+
+        if token.type is Type.NUMBER:
+            current_parser += 1
+
+            return NumberLiteral(value=token.value)
+
+        if token.type is Type.STRING:
+            current_parser += 1
+
+            return StringLiteral(value=token.value)
+
+        if token.type is Type.PAREN and token.value is Char.OPENING_BRACKET.value:
+            current_parser += 1
+            token = tokens[current_parser]
+
+            node = CallExpression(name=token.value)
+
+            current_parser += 1
+            token = tokens[current_parser]
+
+            while token.value is not Char.CLOSING_BRACKET.value:
+                node.add_param(walk())
+                token = tokens[current_parser]
+
+            current_parser += 1
+
+            return node
+
+        raise TypeError(token.type)
+
+    ast = Program()
+
+    while current_parser < len(tokens):
+        ast.set_body(walk())
+
+    return ast
+
+
+def traverser(ast, visitor):
+    
+
+
 # Трансформация - берёт это абстрактное представление, и делает с ним всё, что
 #       требует компилятор.
 
@@ -114,4 +164,5 @@ def tokenizer(input_data):
 
 def compiler(input):
     tokens = tokenizer(input)
+    ast = parser(tokens)
     pass
