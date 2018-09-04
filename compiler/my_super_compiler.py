@@ -155,11 +155,30 @@ def traverser(ast, visitor):
     global visitor_dict
     visitor_dict = dict((type(lit).__name__, lit) for lit in visitor)
 
+    def traverse_array(array, parent):
+        for child in array.get_params():
+            traverse_node(node=child, parent=parent)
+
     def traverse_node(node, parent):
         method = visitor_dict.get(type(node).__name__)
 
-        if method:
+        if method and "enter" in dir(method):
             method.enter(node=node, parent=parent)
+
+        def for_pogram():
+            traverse_array(node.get_body(), node)
+
+        def for_call_expression():
+            traverse_array(node.get_params(), node)
+
+        switcher = {
+            "Program": for_pogram(),
+            "CallExpression": for_call_expression(),
+            "NumberLiteral": None,
+            "StringLiteral": None
+        }
+
+        func = switcher.get(type(node).__name__)
 
     traverse_node(ast, None)
 
@@ -170,9 +189,12 @@ def traverser(ast, visitor):
 
 def transformer(ast):
 
-    traverser(ast, {NumberLiteral(), StringLiteral(), CallExpression()})
+    new_ast = Program()
+    new_ast.set_body(ast.get_body())
 
-    return ast.get_new_body()
+    traverser(new_ast, {NumberLiteral(), StringLiteral(), CallExpression()})
+
+    return new_ast
 
 
 
