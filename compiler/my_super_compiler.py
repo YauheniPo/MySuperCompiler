@@ -181,8 +181,10 @@ def traverser(ast, visitor):
         }
 
         func = switcher.get(type(node).__name__)
-        if func is not None:
+        if func:
             func()
+        elif func is False:
+            pass
         else:
             raise TypeError(type(node).__name__)
 
@@ -213,7 +215,8 @@ def transformer(ast):
 def codegenerator(node):
 
     def for_pogram():
-        return map(codegenerator, node.body).join('\n')
+        output = map(codegenerator, [node.body])
+        return str(output).join('\n')
 
     switcher = {
         "Program": for_pogram,
