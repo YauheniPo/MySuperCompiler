@@ -134,7 +134,7 @@ def parser(tokens):
             token = tokens[current_parser]
 
             while token.value is not Char.CLOSING_BRACKET.value:
-                node.add_param(walk())
+                node.params.append(walk())
                 token = tokens[current_parser]
 
             current_parser += 1
@@ -146,7 +146,7 @@ def parser(tokens):
     ast = Program()
 
     while current_parser < len(tokens):
-        ast.set_body(walk())
+        ast.body = walk()
 
     return ast
 
@@ -156,8 +156,10 @@ def traverser(ast, visitor):
     visitor_dict = dict((type(lit).__name__, lit) for lit in visitor)
 
     def traverse_array(array, parent):
-        for child in array.get_params():
-            traverse_node(node=child, parent=parent)
+        if isinstance(array, list):
+            [traverse_node(item, parent) for item in array]
+        else:
+            traverse_node(node=array, parent=parent)
 
     def traverse_node(node, parent):
         method = visitor_dict.get(type(node).__name__)
@@ -166,19 +168,26 @@ def traverser(ast, visitor):
             method.enter(node=node, parent=parent)
 
         def for_pogram():
-            traverse_array(node.get_body(), node)
+            traverse_array(node.body, node)
 
         def for_call_expression():
-            traverse_array(node.get_params(), node)
+            traverse_array(node.params, node)
 
         switcher = {
-            "Program": for_pogram(),
-            "CallExpression": for_call_expression(),
-            "NumberLiteral": None,
-            "StringLiteral": None
+            "Program": for_pogram,
+            "CallExpression": for_call_expression,
+            "NumberLiteral": False,
+            "StringLiteral": False
         }
 
         func = switcher.get(type(node).__name__)
+        if func is not None:
+            func()
+        else:
+            raise TypeError(type(node).__name__)
+
+        if method and "exit" in dir(method):
+            method.exit(node=node, parent=parent)
 
     traverse_node(ast, None)
 
@@ -190,20 +199,43 @@ def traverser(ast, visitor):
 def transformer(ast):
 
     new_ast = Program()
-    new_ast.set_body(ast.get_body())
+    new_ast.body = ast.body
 
     traverser(new_ast, {NumberLiteral(), StringLiteral(), CallExpression()})
 
     return new_ast
 
 
-
 # Кодогенерация берёт трансформированное представление кода, и на его основе
 #      генерирует новый код.
 
 
-def compiler(input):
-    tokens = tokenizer(input)
+def codegenerator(node):
+
+    def for_pogram():
+        return map(codegenerator, node.body).join('\n')
+
+    switcher = {
+        "Program": for_pogram,
+        "ExpressionStatement": None,
+        "CallExpression": None,
+        "Identifier": None,
+        "NumberLiteral": None,
+        "StringLiteral": None
+    }
+
+    func = switcher.get(type(node).__name__)
+    if func:
+        func()
+    else:
+        raise TypeError(type(node).__name__)
+
+
+def compiler(input_code):
+
+    tokens = tokenizer(input_code)
     ast = parser(tokens)
     new_ast = transformer(ast)
-    pass
+    output_code = codegenerator(new_ast)
+
+    return output_code
