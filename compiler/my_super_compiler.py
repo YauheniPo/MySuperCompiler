@@ -53,10 +53,10 @@ def tokenizer(input_data):
 
             continue
 
-        if char is Char.STRING:
+        if char is Char.STRING.value:
             value = StringIO()
 
-            while char is Char.STRING:
+            while char is Char.STRING.value:
                 value.write(char)
                 current += 1
                 char = input_data[current]
@@ -202,14 +202,14 @@ def transformer(ast):
 def code_generator(node):
 
     def for_program():
-        output = [code_generator(item) for item in node.context_]
+        output = map(code_generator, node.context_)
         return '\n'.join(output)
 
     def for_expression_statement():
         return code_generator(node.expression) + ';'
 
     def for_call_expression():
-        output = [code_generator(item) for item in node.arguments]
+        output = map(code_generator, node.arguments)
         return code_generator(node.callee) + '(' + ', '.join(output) + ')'
 
     def for_identifier():
