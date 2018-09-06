@@ -1,20 +1,10 @@
 import re
-from enum import Enum
 from io import StringIO
 
-from compiler.entity.nodes import NumberLiteral, StringLiteral, CallExpression, Program
-from compiler.types import Type
-
-
-class Char(Enum):
-    WHITESPACE = ' '
-    NUMBER = '\d'
-    LETTERS = '\w'
-    PARENT = '[(]|[)]'
-    STRING = '"'
-    OPENING_BRACKET = '('
-    CLOSING_BRACKET = ')'
-    COMMA = ','
+from compiler.common.chars_enum import Char
+from compiler.entities.nodes import NumberLiteral, StringLiteral, CallExpression, Program
+from compiler.common.types_enum import Type
+from compiler.entities.token import Token
 
 
 # Парсинг - берёт сырой код и создаёт его более абстрактное представление.
@@ -26,9 +16,6 @@ class Char(Enum):
 #      Это могут быть цифры, пунктуация, метки, операторы, всё что угодно.
 
 
-from compiler.token import Token
-
-
 def tokenizer(input_data):
     current = 0
     tokens = []
@@ -37,14 +24,14 @@ def tokenizer(input_data):
         char = input_data[current]
 
         if char is Char.OPENING_BRACKET.value:
-            tokens.append(Token(type=Type.PAREN, value=Char.OPENING_BRACKET.value))
+            tokens.append(Token(element_type=Type.PAREN, value=Char.OPENING_BRACKET.value))
 
             current += 1
 
             continue
 
         if char is Char.CLOSING_BRACKET.value:
-            tokens.append(Token(type=Type.PAREN, value=Char.CLOSING_BRACKET.value))
+            tokens.append(Token(element_type=Type.PAREN, value=Char.CLOSING_BRACKET.value))
 
             current += 1
 
@@ -62,7 +49,7 @@ def tokenizer(input_data):
                 current += 1
                 char = input_data[current]
 
-            tokens.append(Token(type=Type.NUMBER, value=value.getvalue()))
+            tokens.append(Token(element_type=Type.NUMBER, value=value.getvalue()))
 
             continue
 
@@ -77,7 +64,7 @@ def tokenizer(input_data):
             current += 1
             char = input_data[current]
 
-            tokens.append(Token(type=Type.STRING, value=value.getvalue()))
+            tokens.append(Token(element_type=Type.STRING, value=value.getvalue()))
 
             continue
 
@@ -89,7 +76,7 @@ def tokenizer(input_data):
                 current += 1
                 char = input_data[current]
 
-            tokens.append(Token(type=Type.NAME, value=value.getvalue()))
+            tokens.append(Token(element_type=Type.NAME, value=value.getvalue()))
 
             continue
 
@@ -146,7 +133,7 @@ def parser(tokens):
     ast = Program()
 
     while current_parser < len(tokens):
-        ast.body = walk()
+        ast.body.append(walk())
 
     return ast
 
@@ -167,14 +154,14 @@ def traverser(ast, visitor):
         if method and "enter" in dir(method):
             method.enter(node=node, parent=parent)
 
-        def for_pogram():
+        def for_program():
             traverse_array(node.body, node)
 
         def for_call_expression():
             traverse_array(node.params, node)
 
         switcher = {
-            "Program": for_pogram,
+            "Program": for_program,
             "CallExpression": for_call_expression,
             "NumberLiteral": False,
             "StringLiteral": False
@@ -212,24 +199,40 @@ def transformer(ast):
 #      генерирует новый код.
 
 
-def codegenerator(node):
+def code_generator(node):
 
-    def for_pogram():
-        output = map(codegenerator, [node.body])
-        return str(output).join('\n')
+    def for_program():
+        output = [code_generator(item) for item in node.context_]
+        return '\n'.join(output)
+
+    def for_expression_statement():
+        return code_generator(node.expression) + ';'
+
+    def for_call_expression():
+        output = [code_generator(item) for item in node.arguments]
+        return code_generator(node.callee) + '(' + ', '.join(output) + ')'
+
+    def for_identifier():
+        return node.name
+
+    def for_number_literal():
+        return node.value
+
+    def for_string_literal():
+        return '"' + node.value + '"'
 
     switcher = {
-        "Program": for_pogram,
-        "ExpressionStatement": None,
-        "CallExpression": None,
-        "Identifier": None,
-        "NumberLiteral": None,
-        "StringLiteral": None
+        "Program": for_program,
+        "ExpressionStatement": for_expression_statement,
+        "CallExpression": for_call_expression,
+        "Identifier": for_identifier,
+        "NumberLiteral": for_number_literal,
+        "StringLiteral": for_string_literal
     }
 
     func = switcher.get(type(node).__name__)
     if func:
-        func()
+        return func()
     else:
         raise TypeError(type(node).__name__)
 
@@ -239,6 +242,6 @@ def compiler(input_code):
     tokens = tokenizer(input_code)
     ast = parser(tokens)
     new_ast = transformer(ast)
-    output_code = codegenerator(new_ast)
+    output_code = code_generator(new_ast)
 
     return output_code

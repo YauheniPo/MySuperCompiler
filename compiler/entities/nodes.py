@@ -3,7 +3,10 @@ class Program(object):
     context_ = []
 
     def __init__(self, body=None):
-        self.body = body
+        if body is None:
+            self.body = []
+        else:
+            self.body = body
 
 
 class CallExpression(object):
@@ -21,13 +24,8 @@ class CallExpression(object):
         self.name = name
         self.callee = callee
 
-    class Identifier(object):
-
-        def __init__(self, name):
-            self.name = name
-
     def enter(self, node, parent):
-        expression = CallExpression(callee=self.Identifier(name=node.name))
+        expression = CallExpression(callee=Identifier(name=node.name))
 
         node.context_ = expression.arguments
 
@@ -59,3 +57,9 @@ class ExpressionStatement(object):
 
     def __init__(self, expression=None):
         self.expression = expression
+
+
+class Identifier(object):
+
+    def __init__(self, name):
+        self.name = name
