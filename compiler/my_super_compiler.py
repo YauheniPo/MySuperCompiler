@@ -2,21 +2,22 @@ import re
 from io import StringIO
 
 from compiler.common.chars_enum import Char
-from compiler.entities.nodes import NumberLiteral, StringLiteral, CallExpression, Program
 from compiler.common.types_enum import Type
+from compiler.entities.nodes import NumberLiteral, StringLiteral, CallExpression, Program
 from compiler.entities.token import Token
 
 
 # Парсинг - берёт сырой код и создаёт его более абстрактное представление.
 
-# 1.1. Лексический анализ - берёт "сырой" код и разбивает его на части (токены) с помощью
-#      токенизера (или лексера).
-#
-#      Токены — это массив маленьких объектов, которые описывают изолированый кусок кода.
-#      Это могут быть цифры, пунктуация, метки, операторы, всё что угодно.
-
 
 def tokenizer(input_data):
+    """
+    1.1. Лексический анализ - берёт "сырой" код и разбивает его на части (токены) с помощью токенизера (или лексера).
+
+    Токены — это массив маленьких объектов, которые описывают изолированый кусок кода.
+    Это могут быть цифры, пунктуация, метки, операторы, всё что угодно.
+
+    """
     current = 0
     tokens = []
 
@@ -84,16 +85,17 @@ def tokenizer(input_data):
 
     return tokens
 
-# 1.2. Синтаксический анализ - берёт токены и строит представление, которое описывает
-#      все части синтаксиса, и их связи между собой. Это называется промежуточным
-#      представлением или AST (Abstract Syntax Tree, Абстрактное Синтаксическое Дерево).
-#
-#      Если кратно, то Abstract Syntax Tree (AST) — это глубоко вложенные объекты,
-#      представленные таким образом, чтобы с ними было легко работать, и при этом предоставляющие
-#      много информации.
-
 
 def parser(tokens):
+    """
+    1.2. Синтаксический анализ - берёт токены и строит представление, которое описывает
+    все части синтаксиса, и их связи между собой. Это называется промежуточным
+    представлением или AST (Abstract Syntax Tree, Абстрактное Синтаксическое Дерево).
+
+    Если кратно, то Abstract Syntax Tree (AST) — это глубоко вложенные объекты,
+    представленные таким образом, чтобы с ними было легко работать, и при этом предоставляющие много информации.
+
+    """
     global current_parser
     current_parser = 0
 
@@ -143,10 +145,7 @@ def traverser(ast, visitor):
     visitor_dict = dict((type(lit).__name__, lit) for lit in visitor)
 
     def traverse_array(array, parent):
-        if isinstance(array, list):
-            [traverse_node(item, parent) for item in array]
-        else:
-            traverse_node(node=array, parent=parent)
+        [traverse_node(item, parent) for item in array]
 
     def traverse_node(node, parent):
         method = visitor_dict.get(type(node).__name__)
@@ -181,36 +180,33 @@ def traverser(ast, visitor):
     traverse_node(ast, None)
 
 
-# Трансформация - берёт это абстрактное представление, и делает с ним всё, что
-#       требует компилятор.
-
-
 def transformer(ast):
+    """
+    Трансформация - берёт это абстрактное представление, и делает с ним всё, что требует компилятор.
 
+    """
     new_ast = Program()
-    new_ast.body = ast.body
+    ast._context = new_ast.body
 
-    traverser(new_ast, {NumberLiteral(), StringLiteral(), CallExpression()})
+    traverser(ast, {NumberLiteral(), StringLiteral(), CallExpression()})
 
+    del ast
     return new_ast
 
 
-# Кодогенерация берёт трансформированное представление кода, и на его основе
-#      генерирует новый код.
-
-
 def code_generator(node):
+    """
+    Кодогенерация берёт трансформированное представление кода, и на его основе генерирует новый код.
 
+    """
     def for_program():
-        output = map(code_generator, node.context_)
-        return '\n'.join(output)
+        return '\n'.join(map(code_generator, node.body))
 
     def for_expression_statement():
         return code_generator(node.expression) + ';'
 
     def for_call_expression():
-        output = map(code_generator, node.arguments)
-        return code_generator(node.callee) + '(' + ', '.join(output) + ')'
+        return code_generator(node.callee) + '(' + ', '.join(map(code_generator, node.arguments)) + ')'
 
     def for_identifier():
         return node.name
@@ -238,7 +234,6 @@ def code_generator(node):
 
 
 def compiler(input_code):
-
     tokens = tokenizer(input_code)
     ast = parser(tokens)
     new_ast = transformer(ast)

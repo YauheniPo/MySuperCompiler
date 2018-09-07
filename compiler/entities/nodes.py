@@ -1,6 +1,7 @@
-class Program(object):
+from compiler.entities.nodes_interface import INodeInterface
 
-    context_ = []
+
+class Program(object):
 
     def __init__(self, body=None):
         if body is None:
@@ -9,7 +10,7 @@ class Program(object):
             self.body = body
 
 
-class CallExpression(object):
+class CallExpression(INodeInterface):
 
     def __init__(self, name=None, params=None, callee=None, arguments=None):
         if params is None:
@@ -27,30 +28,39 @@ class CallExpression(object):
     def enter(self, node, parent):
         expression = CallExpression(callee=Identifier(name=node.name))
 
-        node.context_ = expression.arguments
+        node._context = expression.arguments
 
         if not isinstance(parent, CallExpression):
             expression = ExpressionStatement(expression=expression)
 
-        parent.context_.append(expression)
+        parent._context.append(expression)
+
+    def exit(self, node, parent):
+        pass
 
 
-class NumberLiteral(object):
-
-    def __init__(self, value=None):
-        self.value = value
-
-    def enter(self, node, parent):
-        parent.context_.append(NumberLiteral(value=node.value))
-
-
-class StringLiteral(object):
+class NumberLiteral(INodeInterface):
 
     def __init__(self, value=None):
         self.value = value
 
     def enter(self, node, parent):
-        parent.context_.append(NumberLiteral(value=node.value))
+        parent._context.append(NumberLiteral(value=node.value))
+
+    def exit(self, node, parent):
+        pass
+
+
+class StringLiteral(INodeInterface):
+
+    def __init__(self, value=None):
+        self.value = value
+
+    def enter(self, node, parent):
+        parent._context.append(NumberLiteral(value=node.value))
+
+    def exit(self, node, parent):
+        pass
 
 
 class ExpressionStatement(object):
