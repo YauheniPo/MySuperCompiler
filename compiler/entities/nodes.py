@@ -1,7 +1,11 @@
+import json
+
 from compiler.entities.nodes_interface import INodeInterface
 
 
 class Program(object):
+
+    __slots__ = ['body', '_context']
 
     def __init__(self, body=None):
         if body is None:
@@ -11,6 +15,8 @@ class Program(object):
 
 
 class CallExpression(INodeInterface):
+
+    __slots__ = ['name', 'params', 'callee', 'arguments']
 
     def __init__(self, name=None, params=None, callee=None, arguments=None):
         if params is None:
@@ -38,8 +44,16 @@ class CallExpression(INodeInterface):
     def exit(self, node, parent):
         pass
 
+    def to_json(self):
+        data = dict()
+        for var in self.__slots__:
+            data[var] = getattr(self, var)
+        return json.dumps(data)
+
 
 class NumberLiteral(INodeInterface):
+
+    __slots__ = ['value']
 
     def __init__(self, value=None):
         self.value = value
@@ -53,6 +67,8 @@ class NumberLiteral(INodeInterface):
 
 class StringLiteral(INodeInterface):
 
+    __slots__ = ['value']
+
     def __init__(self, value=None):
         self.value = value
 
@@ -65,11 +81,15 @@ class StringLiteral(INodeInterface):
 
 class ExpressionStatement(object):
 
+    __slots__ = ['expression']
+
     def __init__(self, expression=None):
         self.expression = expression
 
 
 class Identifier(object):
+
+    __slots__ = ['name']
 
     def __init__(self, name):
         self.name = name
